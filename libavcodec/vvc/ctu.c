@@ -2452,6 +2452,8 @@ int ff_vvc_coding_tree_unit(VVCLocalContext *lc,
     EntryPoint* ep              = lc->ep;
     int ret;
 
+    av_assert0(x_ctb < pps->width && y_ctb < pps->height);
+
     if (rx == pps->ctb_to_col_bd[rx]) {
         ep->num_hmvp = 0;
         ep->num_hmvp_ibc = 0;
