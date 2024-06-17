@@ -169,6 +169,7 @@ static void set_parser_ctx(AVCodecParserContext *s, AVCodecContext *avctx,
 
     s->coded_width  = pps->pps_pic_width_in_luma_samples;
     s->coded_height = pps->pps_pic_height_in_luma_samples;
+    // @FIXME
     s->width = pps->pps_pic_width_in_luma_samples -
         (pps->pps_conf_win_left_offset + pps->pps_conf_win_right_offset) *
         h266_sub_width_c[sps->sps_chroma_format_idc];

@@ -151,6 +151,15 @@ enum {
     // get near that, though, so set a lower limit here with the maximum
     // possible value for 8K video (at most 135 32x32 Ctb rows).
     VVC_MAX_ENTRY_POINTS = VVC_MAX_TILE_COLUMNS * 135,
+
+    /// 7.4.3.4 sps_log2_min_luma_coding_block_size_minus2 minimum 0
+    VVC_MIN_CB_SIZE = 4,
+
+    /// 7.4.3.4 sps_log2_ctu_size_minus5 minimum 0
+    VVC_MIN_CTB_SIZE = 32,
+
+    /// 7.4.3.4 sps_log2_ctu_size_minus5 maximum 3
+    VVC_MAX_CTB_SIZE = 256,
 };
 
 #endif /* AVCODEC_VVC_H */

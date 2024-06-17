@@ -1647,19 +1647,8 @@ static int FUNC(sps)(CodedBitstreamContext *ctx, RWContext *rw,
 static int FUNC(pps) (CodedBitstreamContext *ctx, RWContext *rw,
                       H266RawPPS *current)
 {
-    CodedBitstreamH266Context *h266 = ctx->priv_data;
-    const H266RawSPS *sps;
     int err, i;
-    unsigned int min_cb_size_y, divisor, ctb_size_y,
-        pic_width_in_ctbs_y, pic_height_in_ctbs_y;
-    uint8_t sub_width_c, sub_height_c, qp_bd_offset;
-
-    static const uint8_t h266_sub_width_c[] = {
-        1, 2, 2, 1
-    };
-    static const uint8_t h266_sub_height_c[] = {
-        1, 2, 1, 1
-    };
+    unsigned int pic_width_in_ctbs_y, pic_height_in_ctbs_y;
 
     HEADER("Picture Parameter Set");
 
@@ -1668,70 +1657,12 @@ static int FUNC(pps) (CodedBitstreamContext *ctx, RWContext *rw,
 
     ub(6, pps_pic_parameter_set_id);
     ub(4, pps_seq_parameter_set_id);
-    sps = h266->sps[current->pps_seq_parameter_set_id];
-    if (!sps) {
-        av_log(ctx->log_ctx, AV_LOG_ERROR, "SPS id %d not available.\n",
-               current->pps_seq_parameter_set_id);
-        return AVERROR_INVALIDDATA;
-    }
 
     flag(pps_mixed_nalu_types_in_pic_flag);
-    ue(pps_pic_width_in_luma_samples,
-       1, sps->sps_pic_width_max_in_luma_samples);
-    ue(pps_pic_height_in_luma_samples,
-       1, sps->sps_pic_height_max_in_luma_samples);
-
-    min_cb_size_y = 1 << (sps->sps_log2_min_luma_coding_block_size_minus2 + 2);
-    divisor = FFMAX(min_cb_size_y, 8);
-    if (current->pps_pic_width_in_luma_samples % divisor ||
-        current->pps_pic_height_in_luma_samples % divisor) {
-        av_log(ctx->log_ctx, AV_LOG_ERROR,
-               "Invalid dimensions: %ux%u not divisible "
-               "by %u, MinCbSizeY = %u.\n",
-               current->pps_pic_width_in_luma_samples,
-               current->pps_pic_height_in_luma_samples, divisor, min_cb_size_y);
-        return AVERROR_INVALIDDATA;
-    }
-    if (!sps->sps_res_change_in_clvs_allowed_flag &&
-        (current->pps_pic_width_in_luma_samples !=
-         sps->sps_pic_width_max_in_luma_samples ||
-         current->pps_pic_height_in_luma_samples !=
-         sps->sps_pic_height_max_in_luma_samples)) {
-        av_log(ctx->log_ctx, AV_LOG_ERROR,
-               "Resoltuion change is not allowed, "
-               "in max resolution (%ux%u) mismatched with pps(%ux%u).\n",
-               sps->sps_pic_width_max_in_luma_samples,
-               sps->sps_pic_height_max_in_luma_samples,
-               current->pps_pic_width_in_luma_samples,
-               current->pps_pic_height_in_luma_samples);
-        return AVERROR_INVALIDDATA;
-    }
-
-    ctb_size_y = 1 << (sps->sps_log2_ctu_size_minus5 + 5);
-    if (sps->sps_ref_wraparound_enabled_flag) {
-        if ((ctb_size_y / min_cb_size_y + 1) >
-            (current->pps_pic_width_in_luma_samples / min_cb_size_y - 1)) {
-            av_log(ctx->log_ctx, AV_LOG_ERROR,
-                   "Invalid width(%u), ctb_size_y = %u, min_cb_size_y = %u.\n",
-                   current->pps_pic_width_in_luma_samples,
-                   ctb_size_y, min_cb_size_y);
-            return AVERROR_INVALIDDATA;
-        }
-    }
+    ue(pps_pic_width_in_luma_samples, 1, VVC_MAX_WIDTH);
+    ue(pps_pic_height_in_luma_samples, 1, VVC_MAX_HEIGHT);
 
     flag(pps_conformance_window_flag);
-    if (current->pps_pic_width_in_luma_samples ==
-        sps->sps_pic_width_max_in_luma_samples &&
-        current->pps_pic_height_in_luma_samples ==
-        sps->sps_pic_height_max_in_luma_samples &&
-        current->pps_conformance_window_flag) {
-        av_log(ctx->log_ctx, AV_LOG_ERROR,
-               "Conformance window flag should not true.\n");
-        return AVERROR_INVALIDDATA;
-    }
-
-    sub_width_c = h266_sub_width_c[sps->sps_chroma_format_idc];
-    sub_height_c = h266_sub_height_c[sps->sps_chroma_format_idc];
     if (current->pps_conformance_window_flag) {
         ue(pps_conf_win_left_offset, 0, current->pps_pic_width_in_luma_samples);
         ue(pps_conf_win_right_offset,
@@ -1739,70 +1670,22 @@ static int FUNC(pps) (CodedBitstreamContext *ctx, RWContext *rw,
         ue(pps_conf_win_top_offset, 0, current->pps_pic_height_in_luma_samples);
         ue(pps_conf_win_bottom_offset,
            0, current->pps_pic_height_in_luma_samples);
-        if (sub_width_c *
-            (current->pps_conf_win_left_offset +
-             current->pps_conf_win_right_offset) >=
-            current->pps_pic_width_in_luma_samples ||
-            sub_height_c *
-            (current->pps_conf_win_top_offset +
-             current->pps_conf_win_bottom_offset) >=
-            current->pps_pic_height_in_luma_samples) {
-            av_log(ctx->log_ctx, AV_LOG_ERROR,
-                   "Invalid pps conformance window: (%u, %u, %u, %u), "
-                   "resolution is %ux%u, sub wxh is %ux%u.\n",
-                   current->pps_conf_win_left_offset,
-                   current->pps_conf_win_right_offset,
-                   current->pps_conf_win_top_offset,
-                   current->pps_conf_win_bottom_offset,
-                   current->pps_pic_width_in_luma_samples,
-                   current->pps_pic_height_in_luma_samples,
-                   sub_width_c, sub_height_c);
-            return AVERROR_INVALIDDATA;
-        }
-    } else {
-        if (current->pps_pic_width_in_luma_samples ==
-            sps->sps_pic_width_max_in_luma_samples &&
-            current->pps_pic_height_in_luma_samples ==
-            sps->sps_pic_height_max_in_luma_samples) {
-            infer(pps_conf_win_left_offset, sps->sps_conf_win_left_offset);
-            infer(pps_conf_win_right_offset, sps->sps_conf_win_right_offset);
-            infer(pps_conf_win_top_offset, sps->sps_conf_win_top_offset);
-            infer(pps_conf_win_bottom_offset, sps->sps_conf_win_bottom_offset);
-        } else {
-            infer(pps_conf_win_left_offset, 0);
-            infer(pps_conf_win_right_offset, 0);
-            infer(pps_conf_win_top_offset, 0);
-            infer(pps_conf_win_bottom_offset, 0);
-        }
-
     }
 
     flag(pps_scaling_window_explicit_signalling_flag);
-    if (!sps->sps_ref_pic_resampling_enabled_flag &&
-        current->pps_scaling_window_explicit_signalling_flag) {
-        av_log(ctx->log_ctx, AV_LOG_ERROR,
-               "Invalid data: sps_ref_pic_resampling_enabled_flag is false, "
-               "but pps_scaling_window_explicit_signalling_flag is true.\n");
-        return AVERROR_INVALIDDATA;
-    }
     if (current->pps_scaling_window_explicit_signalling_flag) {
         se(pps_scaling_win_left_offset,
-           -current->pps_pic_width_in_luma_samples * 15 / sub_width_c,
-           current->pps_pic_width_in_luma_samples / sub_width_c);
+           -current->pps_pic_width_in_luma_samples * 15,
+           current->pps_pic_width_in_luma_samples);
         se(pps_scaling_win_right_offset,
-           -current->pps_pic_width_in_luma_samples * 15 / sub_width_c,
-           current->pps_pic_width_in_luma_samples / sub_width_c);
+           -current->pps_pic_width_in_luma_samples * 15,
+           current->pps_pic_width_in_luma_samples);
         se(pps_scaling_win_top_offset,
-           -current->pps_pic_height_in_luma_samples * 15 / sub_height_c,
-           current->pps_pic_height_in_luma_samples / sub_height_c);
+           -current->pps_pic_height_in_luma_samples * 15,
+           current->pps_pic_height_in_luma_samples);
         se(pps_scaling_win_bottom_offset,
-           -current->pps_pic_height_in_luma_samples * 15 / sub_height_c,
-           current->pps_pic_height_in_luma_samples / sub_height_c);
-    } else {
-        infer(pps_scaling_win_left_offset, current->pps_conf_win_left_offset);
-        infer(pps_scaling_win_right_offset, current->pps_conf_win_right_offset);
-        infer(pps_scaling_win_top_offset, current->pps_conf_win_top_offset);
-        infer(pps_scaling_win_bottom_offset, current->pps_conf_win_bottom_offset);
+           -current->pps_pic_height_in_luma_samples * 15,
+           current->pps_pic_height_in_luma_samples);
     }
 
     flag(pps_output_flag_present_flag);
@@ -1811,37 +1694,26 @@ static int FUNC(pps) (CodedBitstreamContext *ctx, RWContext *rw,
 
     if (current->pps_subpic_id_mapping_present_flag) {
         if (!current->pps_no_pic_partition_flag) {
-            ue(pps_num_subpics_minus1,
-               sps->sps_num_subpics_minus1, sps->sps_num_subpics_minus1);
+            ue(pps_num_subpics_minus1, 0, VVC_MAX_SLICES);
         } else {
             infer(pps_num_subpics_minus1, 0);
         }
-        ue(pps_subpic_id_len_minus1, sps->sps_subpic_id_len_minus1,
-           sps->sps_subpic_id_len_minus1);
+        ue(pps_subpic_id_len_minus1, 0, 15);
         for (i = 0; i <= current->pps_num_subpics_minus1; i++) {
-            ubs(sps->sps_subpic_id_len_minus1 + 1, pps_subpic_id[i], 1, i);
+            ubs(current->pps_subpic_id_len_minus1 + 1, pps_subpic_id[i], 1, i);
         }
     }
 
-    for (i = 0; i <= sps->sps_num_subpics_minus1; i++) {
-        if (sps->sps_subpic_id_mapping_explicitly_signalled_flag)
-            current->sub_pic_id_val[i] = current->pps_subpic_id_mapping_present_flag
-                                       ? current->pps_subpic_id[i]
-                                       : sps->sps_subpic_id[i];
-        else
-            current->sub_pic_id_val[i] = i;
-    }
-
-    pic_width_in_ctbs_y = AV_CEIL_RSHIFT
-        (current->pps_pic_width_in_luma_samples, (sps->sps_log2_ctu_size_minus5 + 5));
-    pic_height_in_ctbs_y = AV_CEIL_RSHIFT(
-        current->pps_pic_height_in_luma_samples,(sps->sps_log2_ctu_size_minus5 + 5));
     if (!current->pps_no_pic_partition_flag) {
         unsigned int exp_tile_width = 0, exp_tile_height = 0;
         unsigned int unified_size, remaining_size;
 
-        u(2, pps_log2_ctu_size_minus5,
-          sps->sps_log2_ctu_size_minus5, sps->sps_log2_ctu_size_minus5);
+        u(2, pps_log2_ctu_size_minus5, 0, 3);
+        pic_width_in_ctbs_y = AV_CEIL_RSHIFT
+            (current->pps_pic_width_in_luma_samples, (current->pps_log2_ctu_size_minus5 + 5));
+        pic_height_in_ctbs_y = AV_CEIL_RSHIFT(
+            current->pps_pic_height_in_luma_samples,(current->pps_log2_ctu_size_minus5 + 5));
+
         ue(pps_num_exp_tile_columns_minus1,
            0, FFMIN(pic_width_in_ctbs_y - 1, VVC_MAX_TILE_COLUMNS - 1));
         ue(pps_num_exp_tile_rows_minus1,
@@ -2101,34 +1973,6 @@ static int FUNC(pps) (CodedBitstreamContext *ctx, RWContext *rw,
 
                 infer(pps_num_exp_slices_in_tile[i], 0);
             }
-            //now, we got all slice information, let's resolve NumSlicesInSubpic
-            for (i = 0; i <= sps->sps_num_subpics_minus1; i++) {
-                current->num_slices_in_subpic[i] = 0;
-                for (j = 0; j <= current->pps_num_slices_in_pic_minus1; j++) {
-                    uint16_t pos_x = 0, pos_y = 0;
-                    pos_x = slice_top_left_ctu_x[j];
-                    pos_y = slice_top_left_ctu_y[j];
-                    if ((pos_x >= sps->sps_subpic_ctu_top_left_x[i]) &&
-                        (pos_x <
-                         sps->sps_subpic_ctu_top_left_x[i] +
-                         sps->sps_subpic_width_minus1[i] + 1) &&
-                         (pos_y >= sps->sps_subpic_ctu_top_left_y[i]) &&
-                         (pos_y < sps->sps_subpic_ctu_top_left_y[i] +
-                            sps->sps_subpic_height_minus1[i] + 1)) {
-                        current->num_slices_in_subpic[i]++;
-                    }
-                }
-            }
-        } else {
-            if (current->pps_no_pic_partition_flag)
-                infer(pps_num_slices_in_pic_minus1, 0);
-            else if (current->pps_single_slice_per_subpic_flag) {
-                for (i = 0; i <= sps->sps_num_subpics_minus1; i++)
-                    current->num_slices_in_subpic[i] = 1;
-                infer(pps_num_slices_in_pic_minus1,
-                      sps->sps_num_subpics_minus1);
-            }
-            // else?
         }
         if (!current->pps_rect_slice_flag ||
             current->pps_single_slice_per_subpic_flag ||
@@ -2157,12 +2001,11 @@ static int FUNC(pps) (CodedBitstreamContext *ctx, RWContext *rw,
     flag(pps_ref_wraparound_enabled_flag);
     if (current->pps_ref_wraparound_enabled_flag) {
         ue(pps_pic_width_minus_wraparound_offset,
-           0, (current->pps_pic_width_in_luma_samples / min_cb_size_y)
-           - (ctb_size_y / min_cb_size_y) - 2);
+           0, (VVC_MAX_WIDTH / VVC_MIN_CB_SIZE)
+           - (VVC_MIN_CTB_SIZE / VVC_MIN_CB_SIZE) - 2);
     }
 
-    qp_bd_offset = 6 * sps->sps_bitdepth_minus8;
-    se(pps_init_qp_minus26, -(26 + qp_bd_offset), 37);
+    se(pps_init_qp_minus26, -74, 37);
     flag(pps_cu_qp_delta_enabled_flag);
     flag(pps_chroma_tool_offsets_present_flag);
     if (current->pps_chroma_tool_offsets_present_flag) {
@@ -3060,21 +2903,7 @@ static int FUNC(slice_header) (CodedBitstreamContext *ctx, RWContext *rw,
 
     if (sps->sps_subpic_info_present_flag) {
         ub(sps->sps_subpic_id_len_minus1 + 1, sh_subpic_id);
-        for (i = 0; i <= sps->sps_num_subpics_minus1; i++) {
-            if (pps->sub_pic_id_val[i] == current->sh_subpic_id) {
-                current->curr_subpic_idx = i;
-                break;
-            }
-        }
-        if (i > sps->sps_num_subpics_minus1) {
-            av_log(ctx->log_ctx, AV_LOG_ERROR, "invalid CurrSubpicIdx %d\n", i);
-            return AVERROR_INVALIDDATA;
-        }
-    } else {
-        current->curr_subpic_idx = 0;
     }
-
-    num_slices_in_subpic = pps->num_slices_in_subpic[current->curr_subpic_idx];
 
     if ((pps->pps_rect_slice_flag && num_slices_in_subpic > 1) ||
         (!pps->pps_rect_slice_flag && pps->num_tiles_in_pic > 1)) {

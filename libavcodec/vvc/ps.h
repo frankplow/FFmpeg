@@ -131,6 +131,20 @@ typedef struct VVCPPS {
     uint16_t subpic_y[VVC_MAX_SLICES];      ///< SubpicTopBoundaryPos
     uint16_t subpic_width[VVC_MAX_SLICES];
     uint16_t subpic_height[VVC_MAX_SLICES];
+
+    uint16_t conf_win_left_offset;
+    uint16_t conf_win_right_offset;
+    uint16_t conf_win_top_offset;
+    uint16_t conf_win_bottom_offset;
+
+    int16_t  scaling_win_left_offset;
+    int16_t  scaling_win_right_offset;
+    int16_t  scaling_win_top_offset;
+    int16_t  scaling_win_bottom_offset;
+
+    uint16_t num_slices_in_pic;
+    uint16_t num_slices_in_subpic[VVC_MAX_SLICES];          ///< NumSlicesInSubpic
+    uint16_t sub_pic_id_val[VVC_MAX_SLICES];                ///< SubpicIdVal
 } VVCPPS;
 
 #define MAX_WEIGHTS 15
@@ -256,13 +270,15 @@ typedef struct VVCSH {
 
     // entries
     uint32_t entry_point_start_ctu[VVC_MAX_ENTRY_POINTS];   ///< entry point start in ctu_addr
+
+    uint16_t curr_subpic_idx;               ///< CurrSubpicIdx
 } VVCSH;
 
 struct VVCContext;
 
 int ff_vvc_decode_frame_ps(VVCFrameParamSets *fps, struct VVCContext *s);
 int ff_vvc_decode_aps(VVCParamSets *ps, const CodedBitstreamUnit *unit);
-int ff_vvc_decode_sh(VVCSH *sh, const VVCFrameParamSets *ps, const CodedBitstreamUnit *unit);
+int ff_vvc_decode_sh(VVCSH *sh, const VVCFrameParamSets *ps, const CodedBitstreamUnit *unit, void *log_ctx);
 void ff_vvc_frame_ps_free(VVCFrameParamSets *fps);
 void ff_vvc_ps_uninit(VVCParamSets *ps);
 

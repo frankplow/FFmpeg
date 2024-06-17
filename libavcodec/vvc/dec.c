@@ -703,7 +703,7 @@ static int slice_start(SliceContext *sc, VVCContext *s, VVCFrameContext *fc,
     VVCSH *sh = &sc->sh;
     int ret;
 
-    ret = ff_vvc_decode_sh(sh, &fc->ps, unit);
+    ret = ff_vvc_decode_sh(sh, &fc->ps, unit, fc->log_ctx);
     if (ret < 0)
         return ret;
 
@@ -742,8 +742,8 @@ static void export_frame_params(VVCContext *s, const VVCFrameContext *fc)
     c->pix_fmt      = sps->pix_fmt;
     c->coded_width  = pps->width;
     c->coded_height = pps->height;
-    c->width        = pps->width  - ((pps->r->pps_conf_win_left_offset + pps->r->pps_conf_win_right_offset) << sps->hshift[CHROMA]);
-    c->height       = pps->height - ((pps->r->pps_conf_win_top_offset + pps->r->pps_conf_win_bottom_offset) << sps->vshift[CHROMA]);
+    c->width        = pps->width  - ((pps->conf_win_left_offset + pps->conf_win_right_offset) << sps->hshift[CHROMA]);
+    c->height       = pps->height - ((pps->conf_win_top_offset + pps->conf_win_bottom_offset) << sps->vshift[CHROMA]);
 }
 
 static int frame_setup(VVCFrameContext *fc, VVCContext *s)

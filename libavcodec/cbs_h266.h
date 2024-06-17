@@ -589,8 +589,6 @@ typedef struct H266RawPPS {
     uint16_t num_tile_rows;
     uint16_t num_tiles_in_pic;
     uint16_t slice_height_in_ctus[VVC_MAX_SLICES];          ///< sliceHeightInCtus
-    uint16_t num_slices_in_subpic[VVC_MAX_SLICES];          ///< NumSlicesInSubpic
-    uint16_t sub_pic_id_val[VVC_MAX_SLICES];                ///< SubpicIdVal
     uint16_t col_width_val[VVC_MAX_TILE_COLUMNS];           ///< ColWidthVal
     uint16_t row_height_val[VVC_MAX_TILE_ROWS];             ///< RowHeightVal
 } H266RawPPS;
@@ -832,7 +830,6 @@ typedef struct  H266RawSliceHeader {
     uint32_t sh_entry_point_offset_minus1[VVC_MAX_ENTRY_POINTS];
 
     // derived values
-    uint16_t curr_subpic_idx;               ///< CurrSubpicIdx
     uint32_t num_entry_points;              ///< NumEntryPoints
     uint8_t  num_ref_idx_active[2];         ///< NumRefIdxActive[]
 
