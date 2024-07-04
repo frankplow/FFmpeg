@@ -1959,6 +1959,14 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .long_name = NULL_IF_CONFIG_SMALL("LEAD MCMP"),
         .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
     },
+    {
+        .id        = AV_CODEC_ID_LCEVC,
+        .type      = AVMEDIA_TYPE_VIDEO,
+        .name      = "lcevc",
+        .long_name = NULL_IF_CONFIG_SMALL("MPEG-5 Part 2 LCEVC (Low Complexity Enhancement Video Coding)"),
+        .props     = AV_CODEC_PROP_LOSSY | AV_CODEC_PROP_LOSSLESS | AV_CODEC_PROP_REORDER,
+        .profiles  = NULL_IF_CONFIG_SMALL(ff_lcevc_profiles),
+    },
 
     /* various PCM "codecs" */
     {

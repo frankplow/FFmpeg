@@ -193,6 +193,9 @@
 #define AV_PROFILE_EVC_BASELINE             0
 #define AV_PROFILE_EVC_MAIN                 1
 
+#define AV_PROFILE_LCEVC_MAIN                       0
+#define AV_PROFILE_LCEVC_MAIN_444                   1
+
 
 #define AV_LEVEL_UNKNOWN                  -99
 

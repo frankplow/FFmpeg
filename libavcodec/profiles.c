@@ -202,4 +202,10 @@ const AVProfile ff_evc_profiles[] = {
     { AV_PROFILE_UNKNOWN },
 };
 
+const AVProfile ff_lcevc_profiles[] = {
+    { AV_PROFILE_LCEVC_MAIN,               "Main"                  },
+    { AV_PROFILE_LCEVC_MAIN_444,           "Main 4:4:4"            },
+    { AV_PROFILE_UNKNOWN },
+};
+
 #endif /* !CONFIG_SMALL */
