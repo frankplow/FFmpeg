@@ -56,6 +56,7 @@ extern const AVCodecParser ff_hdr_parser;
 extern const AVCodecParser ff_ipu_parser;
 extern const AVCodecParser ff_jpeg2000_parser;
 extern const AVCodecParser ff_jpegxl_parser;
+extern const AVCodecParser ff_lcevc_parser;
 extern const AVCodecParser ff_misc4_parser;
 extern const AVCodecParser ff_mjpeg_parser;
 extern const AVCodecParser ff_mlp_parser;
