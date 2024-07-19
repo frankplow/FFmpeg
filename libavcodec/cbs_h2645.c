@@ -26,8 +26,10 @@
 #include "cbs_h264.h"
 #include "cbs_h265.h"
 #include "cbs_h266.h"
+#include "cbs_lcevc.h"
 #include "h264.h"
 #include "h2645_parse.h"
+#include "lcevc.h"
 #include "refstruct.h"
 #include "vvc.h"
 
@@ -2055,6 +2057,12 @@ static const CodedBitstreamUnitTypeDescriptor cbs_h266_unit_types[] = {
     CBS_UNIT_TYPE_END_OF_LIST
 };
 
+static const CodedBitstreamUnitTypeDescriptor cbs_lcevc_unit_types[] = {
+    CBS_UNIT_TYPE_INTERNAL_REF(LCEVC_LEVEL, LCEVCRawProcessBlock, data),
+
+    CBS_UNIT_TYPE_END_OF_LIST
+};
+
 const CodedBitstreamType ff_cbs_type_h264 = {
     .codec_id          = AV_CODEC_ID_H264,
 
@@ -2093,6 +2101,22 @@ const CodedBitstreamType ff_cbs_type_h266 = {
     .codec_id          = AV_CODEC_ID_VVC,
 
     .priv_data_size    = sizeof(CodedBitstreamH266Context),
+
+    .unit_types        = cbs_h266_unit_types,
+
+    .split_fragment    = &cbs_h2645_split_fragment,
+    .read_unit         = &cbs_h266_read_nal_unit,
+    .write_unit        = &cbs_h266_write_nal_unit,
+    .assemble_fragment = &cbs_h2645_assemble_fragment,
+
+    .flush             = &cbs_h266_flush,
+    .close             = &cbs_h266_close,
+};
+
+const CodedBitstreamType ff_cbs_type_lcevc = {
+    .codec_id          = AV_CODEC_ID_LCEVC,
+
+    .priv_data_size    = sizeof(CodedBitstreamLCEVCContext),
 
     .unit_types        = cbs_h266_unit_types,
 
