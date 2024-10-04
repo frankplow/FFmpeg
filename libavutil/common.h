@@ -57,8 +57,7 @@
 /* assume b>0 */
 #define ROUNDED_DIV(a,b) (((a)>=0 ? (a) + ((b)>>1) : (a) - ((b)>>1))/(b))
 /* Fast a/(1<<b) rounded toward +inf. Assume a>=0 and b>=0 */
-#define AV_CEIL_RSHIFT(a,b) (!av_builtin_constant_p(b) ? -((-(a)) >> (b)) \
-                                                       : ((a) + (1<<(b)) - 1) >> (b))
+#define AV_CEIL_RSHIFT(a,b) (((a) + (1<<(b)) - 1) >> (b))
 /* Backwards compat. */
 #define FF_CEIL_RSHIFT AV_CEIL_RSHIFT
 
