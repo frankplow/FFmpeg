@@ -1191,7 +1191,7 @@ static int FUNC(sps)(CodedBitstreamContext *ctx, RWContext *rw,
                            win_left_edge_ctus > current->sps_subpic_ctu_top_left_x[i]
                                ? win_left_edge_ctus - current->sps_subpic_ctu_top_left_x[i]
                                : 0,
-                           MAX_UINT_BITS(wlen), 1, i);
+                           tmp_width_val - current->sps_subpic_ctu_top_left_x[i] - 1, 1, i);
                     } else {
                         infer(sps_subpic_width_minus1[i],
                               tmp_width_val -
@@ -1208,7 +1208,7 @@ static int FUNC(sps)(CodedBitstreamContext *ctx, RWContext *rw,
                            win_top_edge_ctus > current->sps_subpic_ctu_top_left_y[i]
                                ? win_top_edge_ctus - current->sps_subpic_ctu_top_left_y[i]
                                : 0,
-                           MAX_UINT_BITS(hlen), 1, i);
+                           tmp_height_val - current->sps_subpic_ctu_top_left_y[i] - 1, 1, i);
                     } else {
                         infer(sps_subpic_height_minus1[i],
                               tmp_height_val -
@@ -1241,6 +1241,48 @@ static int FUNC(sps)(CodedBitstreamContext *ctx, RWContext *rw,
                     infer(sps_subpic_treated_as_pic_flag[i], 1);
                     infer(sps_loop_filter_across_subpic_enabled_flag[i], 0);
                 }
+            }
+            // If the subpic partitioning structure is signalled explicitly,
+            // validate it constitutes an exhaustive and mutually exclusive
+            // coverage of the picture, per 6.3.3.  If the partitioning is not
+            // provided explicitly, then it is ensured by the syntax and we need
+            // not check.
+            if (!current->sps_subpic_same_size_flag) {
+                char *ctu_in_subpic = av_mallocz(tmp_width_val * tmp_height_val);
+                if (!ctu_in_subpic)
+                    return AVERROR(ENOMEM);
+                for (i = 0; i <= current->sps_num_subpics_minus1; i++) {
+                    const unsigned x0 = current->sps_subpic_ctu_top_left_x[i];
+                    const unsigned y0 = current->sps_subpic_ctu_top_left_y[i];
+                    const unsigned w = current->sps_subpic_width_minus1[i] + 1;
+                    const unsigned h = current->sps_subpic_height_minus1[i] + 1;
+                    av_assert0(x0 + w - 1 < tmp_width_val);
+                    av_assert0(y0 + h - 1 < tmp_height_val);
+                    for (unsigned x = x0; x < x0 + w; x++) {
+                        for (unsigned y = y0; y < y0 + h; y++) {
+                            const unsigned idx = y * tmp_width_val + x;
+                            if (ctu_in_subpic[idx]) {
+                                av_log(ctx->log_ctx, AV_LOG_ERROR,
+                                       "Subpictures overlap.\n");
+                                av_freep(&ctu_in_subpic);
+                                return AVERROR_INVALIDDATA;
+                            }
+                            ctu_in_subpic[idx] = 1;
+                        }
+                    }
+                }
+                for (unsigned x = 0; x < tmp_width_val; x++) {
+                    for (unsigned y = 0; y < tmp_height_val; y++) {
+                        const unsigned idx = y * tmp_width_val + x;
+                        if (!ctu_in_subpic[idx]) {
+                            av_log(ctx->log_ctx, AV_LOG_ERROR,
+                                   "Subpictures do not cover the entire picture.\n");
+                            av_freep(&ctu_in_subpic);
+                            return AVERROR_INVALIDDATA;
+                        }
+                    }
+                }
+                av_freep(&ctu_in_subpic);
             }
         } else {
             infer(sps_subpic_ctu_top_left_x[0], 0);
